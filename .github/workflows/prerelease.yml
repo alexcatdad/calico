@@ -125,35 +125,14 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const version = '${{ steps.version.outputs.prerelease_version }}';
+            const distTag = '${{ steps.version.outputs.dist_tag }}';
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## 📦 Prerelease Published to npm
-
-**Version**: \`${{ steps.version.outputs.prerelease_version }}\`
-**Dist Tag**: \`${{ steps.version.outputs.dist_tag }}\`
-
-### Installation
-
-Install via dist-tag (gets latest prerelease):
-\`\`\`bash
-npm install @alexcatdad/calico@${{ steps.version.outputs.dist_tag }}
-npm install @alexcatdad/calico-validators@${{ steps.version.outputs.dist_tag }}
-npm install @alexcatdad/calico-cli@${{ steps.version.outputs.dist_tag }}
-\`\`\`
-
-Or install specific version:
-\`\`\`bash
-npm install @alexcatdad/calico@${{ steps.version.outputs.prerelease_version }}
-npm install @alexcatdad/calico-validators@${{ steps.version.outputs.prerelease_version }}
-npm install @alexcatdad/calico-cli@${{ steps.version.outputs.prerelease_version }}
-\`\`\`
-
-✅ All tests passed
-✅ Code linted
-✅ Packages built
-✅ Published to npm`
+              body: '## 📦 Prerelease Published to npm\n\n**Version**: `' + version + '`\n**Dist Tag**: `' + distTag + '`\n\n### Installation\n\nInstall via dist-tag (gets latest prerelease):\n```bash\nnpm install @alexcatdad/calico@' + distTag + '\nnpm install @alexcatdad/calico-validators@' + distTag + '\nnpm install @alexcatdad/calico-cli@' + distTag + '\n```\n\nOr install specific version:\n```bash\nnpm install @alexcatdad/calico@' + version + '\nnpm install @alexcatdad/calico-validators@' + version + '\nnpm install @alexcatdad/calico-cli@' + version + '\n```\n\n✅ All tests passed\n✅ Code linted\n✅ Packages built\n✅ Published to npm'
             })
 
       - name: Summary
