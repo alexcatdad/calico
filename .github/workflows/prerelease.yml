@@ -19,7 +19,9 @@ on:
 jobs:
   prerelease:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false || github.event_name == 'workflow_dispatch'
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.draft == false) ||
+      github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout code
@@ -46,6 +48,10 @@ jobs:
 
       - name: Determine prerelease version
         id: version
+        env:
+          INPUT_PRERELEASE_TYPE: ${{ inputs.prerelease_type || 'pr' }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.run_number }}
         run: |
           # Get latest tag
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
@@ -53,21 +59,23 @@ jobs:
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
 
           # Determine prerelease suffix
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            PRERELEASE_TYPE="${{ inputs.prerelease_type }}"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            PRERELEASE_TYPE="$INPUT_PRERELEASE_TYPE"
           else
             PRERELEASE_TYPE="pr"
           fi
 
+          HASH=$(date +%s%N | sha256sum | cut -c1-8)
+
           case $PRERELEASE_TYPE in
             pr)
-              # Format: 1.0.0-pr.123.1 (PR number + timestamp)
-              PRERELEASE_VERSION="$MAJOR.$MINOR.$PATCH-pr.${{ github.event.pull_request.number || github.run_number }}.$(date +%s%N | sha256sum | cut -c1-8)"
+              # Format: 1.0.0-pr.123.hash (PR number + short hash)
+              PRERELEASE_VERSION="$MAJOR.$MINOR.$PATCH-pr.$PR_NUMBER.$HASH"
               DIST_TAG="pr"
               ;;
             dev)
-              # Format: 1.0.0-dev.1 (development)
-              PRERELEASE_VERSION="$MAJOR.$MINOR.$PATCH-dev.$(date +%s%N | sha256sum | cut -c1-8)"
+              # Format: 1.0.0-dev.hash (development)
+              PRERELEASE_VERSION="$MAJOR.$MINOR.$PATCH-dev.$HASH"
               DIST_TAG="dev"
               ;;
             beta)
