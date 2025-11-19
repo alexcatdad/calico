@@ -112,15 +112,15 @@ jobs:
 
           cd packages/core
           echo "Publishing @alexcatdad/calico..."
-          npm publish --tag "${DIST_TAG}" --provenance
+          npm publish --tag "${DIST_TAG}" --access public --provenance
 
           cd ../validators
           echo "Publishing @alexcatdad/calico-validators..."
-          npm publish --tag "${DIST_TAG}" --provenance
+          npm publish --tag "${DIST_TAG}" --access public --provenance
 
           cd ../cli
           echo "Publishing @alexcatdad/calico-cli..."
-          npm publish --tag "${DIST_TAG}" --provenance
+          npm publish --tag "${DIST_TAG}" --access public --provenance
 
       - name: Comment on PR
         if: github.event_name == 'pull_request'
