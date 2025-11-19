@@ -138,20 +138,22 @@ jobs:
           PRERELEASE_VERSION: ${{ steps.version.outputs.prerelease_version }}
           DIST_TAG: ${{ steps.version.outputs.dist_tag }}
         run: |
-          echo "[DRY RUN] Publishing prerelease to npm..."
+          echo "Testing npm publish with bun publish --dry-run..."
           echo ""
-          echo "Would execute:"
-          echo "  npm publish --tag $DIST_TAG (from packages/core/dist)"
-          echo "  npm publish --tag $DIST_TAG (from packages/validators/dist)"
-          echo "  npm publish --tag $DIST_TAG (from packages/cli/dist)"
+
+          cd packages/core
+          echo "=== @alexcatdad/calico@$PRERELEASE_VERSION ==="
+          bun publish --dry-run --tag $DIST_TAG
+
+          cd ../validators
           echo ""
-          echo "Package versions:"
-          echo "  @alexcatdad/calico@$PRERELEASE_VERSION"
-          echo "  @alexcatdad/calico-validators@$PRERELEASE_VERSION"
-          echo "  @alexcatdad/calico-cli@$PRERELEASE_VERSION"
+          echo "=== @alexcatdad/calico-validators@$PRERELEASE_VERSION ==="
+          bun publish --dry-run --tag $DIST_TAG
+
+          cd ../cli
           echo ""
-          echo "Users can install with:"
-          echo "  npm install @alexcatdad/calico@$DIST_TAG"
+          echo "=== @alexcatdad/calico-cli@$PRERELEASE_VERSION ==="
+          bun publish --dry-run --tag $DIST_TAG
 
       - name: Comment on PR
         if: github.event_name == 'pull_request'
@@ -187,7 +189,7 @@ npm install @alexcatdad/calico@${{ steps.version.outputs.prerelease_version }}
 
 **Note**: This is currently a dry-run. Enable real publishing by:
 1. Adding \`NPM_TOKEN\` secret to GitHub Settings
-2. Uncommenting publish commands in \`.github/workflows/prerelease.yml\`
+2. Uncomment the publish step in \`.github/workflows/prerelease.yml\` and remove \`--dry-run\` flag
 `
             })
 

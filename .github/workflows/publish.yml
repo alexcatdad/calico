@@ -95,16 +95,22 @@ jobs:
       - name: Publish to npm (dry run)
         if: steps.check_version.outputs.changed == 'true'
         run: |
-          echo "[DRY RUN] Would publish the following packages to npm:"
+          echo "Testing npm publish with bun publish --dry-run..."
           echo ""
-          echo "Packages in workspace:"
-          bun turbo run build --dry
+
+          cd packages/core
+          echo "=== @alexcatdad/calico@${{ steps.version.outputs.new_version }} ==="
+          bun publish --dry-run
+
+          cd ../validators
           echo ""
-          echo "[DRY RUN] Publishing @alexcatdad/calico@${{ steps.version.outputs.new_version }}"
-          echo "[DRY RUN] Publishing @alexcatdad/calico-validators@${{ steps.version.outputs.new_version }}"
-          echo "[DRY RUN] Publishing @alexcatdad/calico-cli@${{ steps.version.outputs.new_version }}"
+          echo "=== @alexcatdad/calico-validators@${{ steps.version.outputs.new_version }} ==="
+          bun publish --dry-run
+
+          cd ../cli
           echo ""
-          echo "Configured npm registry: ${NPM_REGISTRY:-https://registry.npmjs.org}"
+          echo "=== @alexcatdad/calico-cli@${{ steps.version.outputs.new_version }} ==="
+          bun publish --dry-run
 
       - name: Summary
         if: always()

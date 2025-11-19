@@ -134,32 +134,33 @@ To enable real npm publishing:
 3. Name: `NPM_TOKEN`
 4. Value: paste your npm token
 
-### 3. Uncomment publish commands
+### 3. Update publish commands
 
-In `.github/workflows/prerelease.yml`, find the "Publish to npm" step:
+In `.github/workflows/prerelease.yml`, update the "Publish to npm" step:
 
 **Before** (dry-run):
-```yaml
-- name: Publish to npm (dry run)
-  run: |
-    echo "[DRY RUN] Publishing..."
+```bash
+bun publish --dry-run --tag $DIST_TAG
 ```
 
 **After** (real publish):
-```yaml
-- name: Publish to npm
-  run: |
-    npm config set //registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}
-
-    cd packages/core
-    npm publish --tag ${{ steps.version.outputs.dist_tag }}
-
-    cd ../validators
-    npm publish --tag ${{ steps.version.outputs.dist_tag }}
-
-    cd ../cli
-    npm publish --tag ${{ steps.version.outputs.dist_tag }}
+```bash
+bun publish --tag $DIST_TAG
 ```
+
+Also update `publish.yml` main branch workflow similarly:
+
+**Before** (dry-run):
+```bash
+bun publish --dry-run
+```
+
+**After** (real publish):
+```bash
+bun publish
+```
+
+The `NPM_CONFIG_TOKEN` environment variable will automatically use your npm token.
 
 ## Testing Locally First
 
