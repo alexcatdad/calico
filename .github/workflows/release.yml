@@ -1,23 +1,14 @@
-name: Prerelease Deployment
+name: Release & Publish
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-  workflow_dispatch:
-    inputs:
-      prerelease_type:
-        description: 'Prerelease type'
-        required: true
-        default: 'pr'
-        type: choice
-        options:
-          - pr
-          - dev
-          - beta
-          - rc
+  push:
+    branches:
+      - main
 
 jobs:
-  prerelease:
+  release:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -26,7 +17,7 @@ jobs:
       pull-requests: write
     if: |
       (github.event_name == 'pull_request' && github.event.pull_request.draft == false) ||
-      github.event_name == 'workflow_dispatch'
+      github.event_name == 'push'
 
     steps:
       - name: Checkout code
@@ -57,37 +48,27 @@ jobs:
       - name: Build packages
         run: bun turbo build
 
-      - name: Generate prerelease version
-        id: version
+      - name: Generate prerelease version (PR only)
+        if: github.event_name == 'pull_request'
+        id: prerelease_version
         env:
-          PRERELEASE_TYPE: ${{ inputs.prerelease_type || 'pr' }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.run_number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # Get latest tag for base version
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
           BASE_VERSION=${LATEST_TAG#v}
 
-          # Determine prerelease suffix and tag name
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            PRERELEASE_TYPE="${PRERELEASE_TYPE}"
-            DIST_TAG="${PRERELEASE_TYPE}"
-          else
-            PRERELEASE_TYPE="pr"
-            DIST_TAG="pr"
-            PR_NUMBER="${PR_NUMBER}"
-          fi
-
-          # Create unique prerelease version (timestamp ensures uniqueness)
+          # Create unique prerelease version
           TIMESTAMP=$(date +%s)
-          PRERELEASE_VERSION="${BASE_VERSION}-${PRERELEASE_TYPE}${PR_NUMBER:+.}${PR_NUMBER}.${TIMESTAMP}"
+          PRERELEASE_VERSION="${BASE_VERSION}-pr.${PR_NUMBER}.${TIMESTAMP}"
 
-          echo "base_version=${BASE_VERSION}" >> $GITHUB_OUTPUT
-          echo "prerelease_version=${PRERELEASE_VERSION}" >> $GITHUB_OUTPUT
-          echo "dist_tag=${DIST_TAG}" >> $GITHUB_OUTPUT
+          echo "version=${PRERELEASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "dist_tag=pr" >> $GITHUB_OUTPUT
 
-      - name: Update package versions
+      - name: Update package versions for prerelease (PR only)
+        if: github.event_name == 'pull_request'
         env:
-          VERSION: ${{ steps.version.outputs.prerelease_version }}
+          VERSION: ${{ steps.prerelease_version.outputs.version }}
         run: |
           node << 'EOF'
           const fs = require('fs');
@@ -107,13 +88,37 @@ jobs:
           });
           EOF
 
-      - name: Publish prerelease packages
+      - name: Create changeset (main only)
+        if: github.event_name == 'push'
+        run: |
+          # Check if there are any changesets
+          if [ -d ".changeset" ] && [ "$(ls -A .changeset/*.md 2>/dev/null | grep -v README | grep -v config)" ]; then
+            echo "has_changesets=true" >> $GITHUB_ENV
+          else
+            echo "has_changesets=false" >> $GITHUB_ENV
+          fi
+
+      - name: Apply changeset versions (main only)
+        if: github.event_name == 'push' && env.has_changesets == 'true'
+        id: release_version
+        run: |
+          bunx changeset version
+
+          # Extract versions
+          CORE_VERSION=$(node -e "console.log(require('./packages/core/package.json').version)")
+          VALIDATORS_VERSION=$(node -e "console.log(require('./packages/validators/package.json').version)")
+          CLI_VERSION=$(node -e "console.log(require('./packages/cli/package.json').version)")
+
+          echo "core_version=${CORE_VERSION}" >> $GITHUB_OUTPUT
+          echo "validators_version=${VALIDATORS_VERSION}" >> $GITHUB_OUTPUT
+          echo "cli_version=${CLI_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Publish prerelease packages (PR only)
+        if: github.event_name == 'pull_request'
         env:
-          DIST_TAG: ${{ steps.version.outputs.dist_tag }}
-          NPM_CONFIG_PROVENANCE: true
+          DIST_TAG: ${{ steps.prerelease_version.outputs.dist_tag }}
         run: |
           echo "Publishing prerelease packages with tag: ${DIST_TAG}"
-          echo "Using npm: $(npm --version)"
           echo ""
 
           cd packages/core
@@ -128,13 +133,19 @@ jobs:
           echo "Publishing @alexcatdad/calico-cli..."
           npm publish --tag "${DIST_TAG}" --access public
 
+      - name: Publish release packages (main only)
+        if: github.event_name == 'push' && env.has_changesets == 'true'
+        run: |
+          echo "Publishing release packages..."
+          bunx changeset publish
+
       - name: Comment on PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
-            const version = '${{ steps.version.outputs.prerelease_version }}';
-            const distTag = '${{ steps.version.outputs.dist_tag }}';
+            const version = '${{ steps.prerelease_version.outputs.version }}';
+            const distTag = '${{ steps.prerelease_version.outputs.dist_tag }}';
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -146,11 +157,21 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "## Prerelease Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Release & Publish Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Event**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Status**: $([ '${{ job.status }}' == 'success' ] && echo '✅ Success' || echo '❌ Failed')" >> $GITHUB_STEP_SUMMARY
-          echo "**Version**: \`${{ steps.version.outputs.prerelease_version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Dist Tag**: \`${{ steps.version.outputs.dist_tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Installation" >> $GITHUB_STEP_SUMMARY
-          echo "\`npm install @alexcatdad/calico@${{ steps.version.outputs.dist_tag }}\`" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "**Prerelease Version**: \`${{ steps.prerelease_version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "**Dist Tag**: \`${{ steps.prerelease_version.outputs.dist_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          else
+            if [ "${{ env.has_changesets }}" == "true" ]; then
+              echo "**Core Version**: \`${{ steps.release_version.outputs.core_version }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "**Validators Version**: \`${{ steps.release_version.outputs.validators_version }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "**CLI Version**: \`${{ steps.release_version.outputs.cli_version }}\`" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**No changesets found** - skipping release" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
