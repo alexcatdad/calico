@@ -1,6 +1,6 @@
 {
     "name": "@alexcatdad/calico",
-    "version": "1.0.0",
+    "version": "1.0.1-0",
     "description": "Zero-dependency data export library. Convert JavaScript objects to JSON, CSV, YAML, or Markdown with full TypeScript support and sub-millisecond performance.",
     "author": "@alexcatdad",
     "license": "MIT",

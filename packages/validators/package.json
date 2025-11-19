@@ -1,6 +1,6 @@
 {
     "name": "@alexcatdad/calico-validators",
-    "version": "1.0.0",
+    "version": "1.0.1-0",
     "description": "Optional JSON Schema validator for @alexcatdad/calico. Tree-shakeable validation module for data validation before export.",
     "author": "@alexcatdad",
     "license": "MIT",

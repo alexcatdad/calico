@@ -1,6 +1,6 @@
 {
     "name": "@alexcatdad/calico-cli",
-    "version": "1.0.0",
+    "version": "1.0.1-0",
     "description": "Command-line tool for @alexcatdad/calico. Convert data between JSON, CSV, YAML, and Markdown formats from the terminal.",
     "author": "@alexcatdad",
     "license": "MIT",

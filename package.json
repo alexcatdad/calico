@@ -7,10 +7,14 @@
     "packages/*"
   ],
   "scripts": {
-    "postinstall": "lefthook install"
+    "postinstall": "lefthook install",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:publish": "bun turbo build && changeset publish"
   },
   "devDependencies": {
     "@biomejs/biome": "1.5.3",
+    "@changesets/cli": "^2.29.7",
     "@commitlint/cli": "^20.1.0",
     "@commitlint/config-conventional": "^20.0.0",
     "bun-types": "latest",
