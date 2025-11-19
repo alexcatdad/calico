@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.iml
+.iws
+.classpath
+.project
+.settings/
+
+# OS
+Thumbs.db
+.DS_Store
+*.log
+*.log.*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Turbo/Build cache
+.turbo/

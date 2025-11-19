@@ -1,0 +1,20 @@
+# Lefthook git hooks configuration
+# Validates commit messages and prevents pushing code that fails linting or tests
+
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: bunx commitlint --edit {1}
+
+pre-push:
+  parallel: false
+  jobs:
+    - name: lint
+      glob: "{packages/*/src/**/*.{ts,tsx},src/**/*.{ts,tsx}}"
+      run: bun turbo lint
+      stage_fixed: true
+
+    - name: test
+      glob: "{packages/*/src/**/*.{ts,tsx},test/**/*.{ts,tsx}}"
+      run: bun turbo test
+      stage_fixed: true

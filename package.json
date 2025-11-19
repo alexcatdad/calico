@@ -1,0 +1,20 @@
+{
+  "name": "calico-monorepo",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "postinstall": "lefthook install"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.5.3",
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "bun-types": "latest",
+    "lefthook": "^2.0.4",
+    "turbo": "^2.6.1",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,63 @@
+# Test data
+test_data/
+
+# Source files (only dist/ should be published)
+packages/*/src/
+src/
+*.ts
+*.tsx
+!**/*.d.ts
+
+# Tests
+test/
+*.test.ts
+*.spec.ts
+__tests__/
+
+# Scripts & build tools
+scripts/
+build.js
+esbuild.config.js
+
+# Configuration files
+tsconfig.json
+tsconfig.*.json
+biome.json
+turbo.json
+bunfig.toml
+.prettierrc
+.eslintrc*
+babel.config.js
+jest.config.js
+vitest.config.js
+
+# Documentation
+*.md
+docs/
+SPEC.md
+ASYNC-GUIDE.md
+IMPLEMENTATION-STATUS.md
+
+# Development
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+.env
+.env.local
+
+# VCS
+.git/
+.gitignore
+.github/
+
+# Package managers
+pnpm-lock.yaml
+yarn.lock
+bun.lockb
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml

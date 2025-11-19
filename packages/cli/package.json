@@ -1,0 +1,16 @@
+{
+    "name": "@alexcatdad/calico-cli",
+    "version": "1.0.0",
+    "bin": {
+        "calico": "dist/index.js"
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "bun build ./src/index.ts --outdir dist --format esm --target node && bunx tsc --emitDeclarationOnly --outDir dist --skipLibCheck"
+    },
+    "dependencies": {
+        "@alexcatdad/calico": "workspace:*"
+    }
+}

@@ -1,0 +1,17 @@
+{
+    "name": "@alexcatdad/calico",
+    "version": "1.0.0",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "bun build ./src/index.ts --outdir dist --format esm --target browser && bunx tsc --emitDeclarationOnly --outDir dist --skipLibCheck",
+        "test": "bun test",
+        "lint": "biome check src/"
+    },
+    "dependencies": {
+        "@alexcatdad/calico-validators": "workspace:*"
+    }
+}
