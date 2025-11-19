@@ -104,21 +104,23 @@ jobs:
       - name: Publish prerelease packages
         env:
           DIST_TAG: ${{ steps.version.outputs.dist_tag }}
+          NPM_CONFIG_PROVENANCE: true
         run: |
           echo "Publishing prerelease packages with tag: ${DIST_TAG}"
+          echo "Using npm: $(npm --version)"
           echo ""
 
           cd packages/core
           echo "Publishing @alexcatdad/calico..."
-          npm publish --tag "${DIST_TAG}"
+          npm publish --tag "${DIST_TAG}" --provenance
 
           cd ../validators
           echo "Publishing @alexcatdad/calico-validators..."
-          npm publish --tag "${DIST_TAG}"
+          npm publish --tag "${DIST_TAG}" --provenance
 
           cd ../cli
           echo "Publishing @alexcatdad/calico-cli..."
-          npm publish --tag "${DIST_TAG}"
+          npm publish --tag "${DIST_TAG}" --provenance
 
       - name: Comment on PR
         if: github.event_name == 'pull_request'
