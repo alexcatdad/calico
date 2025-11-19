@@ -24,7 +24,8 @@
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [
-        "dist"
+        "dist",
+        "README.md"
     ],
     "scripts": {
         "build": "bun build ./src/index.ts --outdir dist --format esm --target browser && bunx tsc --emitDeclarationOnly --outDir dist --skipLibCheck",
