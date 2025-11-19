@@ -95,22 +95,22 @@ jobs:
       - name: Publish to npm (dry run)
         if: steps.check_version.outputs.changed == 'true'
         run: |
-          echo "Testing npm publish with bun publish --dry-run..."
+          echo "Testing npm publish with dry-run..."
           echo ""
 
           cd packages/core
           echo "=== @alexcatdad/calico@${{ steps.version.outputs.new_version }} ==="
-          bun publish --dry-run
+          npm publish --dry-run
 
           cd ../validators
           echo ""
           echo "=== @alexcatdad/calico-validators@${{ steps.version.outputs.new_version }} ==="
-          bun publish --dry-run
+          npm publish --dry-run
 
           cd ../cli
           echo ""
           echo "=== @alexcatdad/calico-cli@${{ steps.version.outputs.new_version }} ==="
-          bun publish --dry-run
+          npm publish --dry-run
 
       - name: Summary
         if: always()

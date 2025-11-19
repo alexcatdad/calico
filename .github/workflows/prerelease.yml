@@ -146,22 +146,22 @@ jobs:
           PRERELEASE_VERSION: ${{ steps.version.outputs.prerelease_version }}
           DIST_TAG: ${{ steps.version.outputs.dist_tag }}
         run: |
-          echo "Testing npm publish with bun publish --dry-run..."
+          echo "Testing npm publish with dry-run..."
           echo ""
 
           cd packages/core
           echo "=== @alexcatdad/calico@$PRERELEASE_VERSION ==="
-          bun publish --dry-run --tag $DIST_TAG
+          npm publish --dry-run --tag $DIST_TAG
 
           cd ../validators
           echo ""
           echo "=== @alexcatdad/calico-validators@$PRERELEASE_VERSION ==="
-          bun publish --dry-run --tag $DIST_TAG
+          npm publish --dry-run --tag $DIST_TAG
 
           cd ../cli
           echo ""
           echo "=== @alexcatdad/calico-cli@$PRERELEASE_VERSION ==="
-          bun publish --dry-run --tag $DIST_TAG
+          npm publish --dry-run --tag $DIST_TAG
 
       - name: Comment on PR
         if: github.event_name == 'pull_request'
