@@ -172,33 +172,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## 📦 Prerelease Ready for Testing
-
-**Version**: \`${{ steps.version.outputs.prerelease_version }}\`
-**Dist Tag**: \`${{ steps.version.outputs.dist_tag }}\`
-
-### Installation
-
-Install via dist-tag:
-\`\`\`bash
-npm install @alexcatdad/calico@${{ steps.version.outputs.dist_tag }}
-npm install @alexcatdad/calico-validators@${{ steps.version.outputs.dist_tag }}
-npm install @alexcatdad/calico-cli@${{ steps.version.outputs.dist_tag }}
-\`\`\`
-
-Or install specific version:
-\`\`\`bash
-npm install @alexcatdad/calico@${{ steps.version.outputs.prerelease_version }}
-\`\`\`
-
-✅ All tests passed
-✅ Code linted
-✅ Packages built
-
-**Note**: This is currently a dry-run. Enable real publishing by:
-1. Adding \`NPM_TOKEN\` secret to GitHub Settings
-2. Uncomment the publish step in \`.github/workflows/prerelease.yml\` and remove \`--dry-run\` flag
-`
+              body: '## 📦 Prerelease Ready for Testing\n\n**Version**: `${{ steps.version.outputs.prerelease_version }}`\n**Dist Tag**: `${{ steps.version.outputs.dist_tag }}`\n\n### Installation\n\nInstall via dist-tag:\n```bash\nnpm install @alexcatdad/calico@${{ steps.version.outputs.dist_tag }}\nnpm install @alexcatdad/calico-validators@${{ steps.version.outputs.dist_tag }}\nnpm install @alexcatdad/calico-cli@${{ steps.version.outputs.dist_tag }}\n```\n\nOr install specific version:\n```bash\nnpm install @alexcatdad/calico@${{ steps.version.outputs.prerelease_version }}\n```\n\n✅ All tests passed\n✅ Code linted\n✅ Packages built\n\n**Note**: This is currently a dry-run. Enable real publishing by:\n1. Adding `NPM_TOKEN` secret to GitHub Settings\n2. Uncomment the publish step in `.github/workflows/prerelease.yml` and remove `--dry-run` flag'
             })
 
       - name: Summary
