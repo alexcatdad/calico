@@ -7,14 +7,15 @@ on:
     branches:
       - main
 
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+  pull-requests: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-      issues: write
-      pull-requests: write
     if: |
       (github.event_name == 'pull_request' && github.event.pull_request.draft == false) ||
       github.event_name == 'push'
@@ -28,9 +29,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '24.x'
+          node-version: 'latest'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Update npm
+        run: npm install -g npm@latest
+      
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
