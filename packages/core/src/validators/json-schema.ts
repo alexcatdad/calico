@@ -48,7 +48,8 @@ export function validate(d: unknown, s: ValidationSchema): ValidationResult {
     }
     if (sc.properties && typeof val === "object" && val !== null) {
       for (const k in sc.properties) {
-        if (k in val) v((val as Record<string, any>)[k], sc.properties[k], `${p}.${k}`);
+        if (k in val)
+          v((val as Record<string, any>)[k], sc.properties[k], `${p}.${k}`);
       }
     }
     if (sc.items && Array.isArray(val)) {
