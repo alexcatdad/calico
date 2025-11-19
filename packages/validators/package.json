@@ -1,6 +1,21 @@
 {
     "name": "@alexcatdad/calico-validators",
     "version": "1.0.0",
+    "description": "Optional JSON Schema validator for @alexcatdad/calico. Tree-shakeable validation module for data validation before export.",
+    "author": "@alexcatdad",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/alexcatdad/calico.git",
+        "directory": "packages/validators"
+    },
+    "keywords": [
+        "json-schema",
+        "validator",
+        "validation",
+        "calico",
+        "zero-dependencies"
+    ],
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [

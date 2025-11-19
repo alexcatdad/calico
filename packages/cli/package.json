@@ -1,6 +1,25 @@
 {
     "name": "@alexcatdad/calico-cli",
     "version": "1.0.0",
+    "description": "Command-line tool for @alexcatdad/calico. Convert data between JSON, CSV, YAML, and Markdown formats from the terminal.",
+    "author": "@alexcatdad",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/alexcatdad/calico.git",
+        "directory": "packages/cli"
+    },
+    "keywords": [
+        "cli",
+        "command-line",
+        "csv",
+        "json",
+        "yaml",
+        "markdown",
+        "convert",
+        "export",
+        "calico"
+    ],
     "bin": {
         "calico": "dist/index.js"
     },

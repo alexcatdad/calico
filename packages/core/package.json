@@ -1,6 +1,26 @@
 {
     "name": "@alexcatdad/calico",
     "version": "1.0.0",
+    "description": "Zero-dependency data export library. Convert JavaScript objects to JSON, CSV, YAML, or Markdown with full TypeScript support and sub-millisecond performance.",
+    "author": "@alexcatdad",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/alexcatdad/calico.git",
+        "directory": "packages/core"
+    },
+    "keywords": [
+        "export",
+        "import",
+        "csv",
+        "json",
+        "yaml",
+        "markdown",
+        "data",
+        "serialization",
+        "typescript",
+        "zero-dependencies"
+    ],
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [
