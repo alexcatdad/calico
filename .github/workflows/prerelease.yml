@@ -141,27 +141,27 @@ jobs:
           echo "npm install @alexcatdad/calico@${{ steps.version.outputs.prerelease_version }}"
           echo "\`\`\`"
 
-      - name: Publish to npm (dry run)
+      - name: Publish to npm
         env:
           PRERELEASE_VERSION: ${{ steps.version.outputs.prerelease_version }}
           DIST_TAG: ${{ steps.version.outputs.dist_tag }}
         run: |
-          echo "Testing npm publish with dry-run..."
+          echo "Publishing prerelease packages to npm..."
           echo ""
 
           cd packages/core
           echo "=== @alexcatdad/calico@$PRERELEASE_VERSION ==="
-          npm publish --dry-run --tag $DIST_TAG
+          npm publish --tag $DIST_TAG
 
           cd ../validators
           echo ""
           echo "=== @alexcatdad/calico-validators@$PRERELEASE_VERSION ==="
-          npm publish --dry-run --tag $DIST_TAG
+          npm publish --tag $DIST_TAG
 
           cd ../cli
           echo ""
           echo "=== @alexcatdad/calico-cli@$PRERELEASE_VERSION ==="
-          npm publish --dry-run --tag $DIST_TAG
+          npm publish --tag $DIST_TAG
 
       - name: Comment on PR
         if: github.event_name == 'pull_request'
@@ -172,7 +172,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '## 📦 Prerelease Ready for Testing\n\n**Version**: `${{ steps.version.outputs.prerelease_version }}`\n**Dist Tag**: `${{ steps.version.outputs.dist_tag }}`\n\n### Installation\n\nInstall via dist-tag:\n```bash\nnpm install @alexcatdad/calico@${{ steps.version.outputs.dist_tag }}\nnpm install @alexcatdad/calico-validators@${{ steps.version.outputs.dist_tag }}\nnpm install @alexcatdad/calico-cli@${{ steps.version.outputs.dist_tag }}\n```\n\nOr install specific version:\n```bash\nnpm install @alexcatdad/calico@${{ steps.version.outputs.prerelease_version }}\n```\n\n✅ All tests passed\n✅ Code linted\n✅ Packages built\n\n**Note**: This is currently a dry-run. Enable real publishing by:\n1. Adding `NPM_TOKEN` secret to GitHub Settings\n2. Uncomment the publish step in `.github/workflows/prerelease.yml` and remove `--dry-run` flag'
+              body: '## 📦 Prerelease Published to npm\n\n**Version**: `${{ steps.version.outputs.prerelease_version }}`\n**Dist Tag**: `${{ steps.version.outputs.dist_tag }}`\n\n### Installation\n\nInstall via dist-tag:\n```bash\nnpm install @alexcatdad/calico@${{ steps.version.outputs.dist_tag }}\nnpm install @alexcatdad/calico-validators@${{ steps.version.outputs.dist_tag }}\nnpm install @alexcatdad/calico-cli@${{ steps.version.outputs.dist_tag }}\n```\n\nOr install specific version:\n```bash\nnpm install @alexcatdad/calico@${{ steps.version.outputs.prerelease_version }}\n```\n\n✅ All tests passed\n✅ Code linted\n✅ Packages built\n✅ Published to npm with dist tag `${{ steps.version.outputs.dist_tag }}`'
             })
 
       - name: Summary
@@ -188,6 +188,6 @@ jobs:
           echo "\`npm install @alexcatdad/calico@${{ steps.version.outputs.dist_tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Notes" >> $GITHUB_STEP_SUMMARY
-          echo "- Running in **DRY RUN** mode" >> $GITHUB_STEP_SUMMARY
-          echo "- No packages published" >> $GITHUB_STEP_SUMMARY
-          echo "- No git tags created" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Packages published to npm" >> $GITHUB_STEP_SUMMARY
+          echo "- Dist tag: \`${{ steps.version.outputs.dist_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- No git tags created (prerelease only)" >> $GITHUB_STEP_SUMMARY
