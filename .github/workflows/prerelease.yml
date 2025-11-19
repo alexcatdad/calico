@@ -51,55 +51,51 @@ jobs:
       - name: Build packages
         run: bun turbo build
 
-      - name: Create prerelease changeset
+      - name: Generate prerelease version
+        id: version
         env:
           PRERELEASE_TYPE: ${{ inputs.prerelease_type || 'pr' }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.run_number }}
         run: |
-          mkdir -p .changeset
+          # Get latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+          VERSION=${LATEST_TAG#v}
 
-          # Determine prerelease suffix based on trigger type
+          # Determine prerelease suffix
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             PRERELEASE_SUFFIX="${PRERELEASE_TYPE}"
           else
             PRERELEASE_SUFFIX="pr.${PR_NUMBER}"
           fi
 
-          # Create changeset file with prerelease bump
-          cat > ".changeset/prerelease-${PRERELEASE_SUFFIX}.md" << 'EOF'
+          # Create prerelease version
+          PRERELEASE_VERSION="${VERSION}-${PRERELEASE_SUFFIX}.$(date +%s)"
+
+          echo "prerelease_version=${PRERELEASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "prerelease_type=${PRERELEASE_SUFFIX}" >> $GITHUB_OUTPUT
+
+      - name: Create changeset for prerelease
+        run: |
+          cat > ".changeset/prerelease.md" << EOF
 ---
 "@alexcatdad/calico": prerelease
 "@alexcatdad/calico-validators": prerelease
 "@alexcatdad/calico-cli": prerelease
 ---
 
-Prerelease version: ${{ github.event_name == 'pull_request' && 'PR preview' || inputs.prerelease_type || 'dev' }}
+Prerelease version: ${{ steps.version.outputs.prerelease_version }}
 EOF
 
-      - name: Apply prerelease versions
-        id: version
-        env:
-          PRERELEASE_TYPE: ${{ inputs.prerelease_type || 'pr' }}
+      - name: Apply changeset versions
+        id: applied
         run: |
           bunx changeset version
 
-          # Extract the new versions from package.json
+          # Extract versions
           CORE_VERSION=$(node -e "console.log(require('./packages/core/package.json').version)")
-          VALIDATORS_VERSION=$(node -e "console.log(require('./packages/validators/package.json').version)")
-          CLI_VERSION=$(node -e "console.log(require('./packages/cli/package.json').version)")
-
           echo "core_version=${CORE_VERSION}" >> $GITHUB_OUTPUT
-          echo "validators_version=${VALIDATORS_VERSION}" >> $GITHUB_OUTPUT
-          echo "cli_version=${CLI_VERSION}" >> $GITHUB_OUTPUT
-          echo "prerelease_type=${PRERELEASE_TYPE}" >> $GITHUB_OUTPUT
-
-      - name: Display prerelease info
-        run: |
-          echo "## Prerelease Information"
-          echo "**Core Version**: ${{ steps.version.outputs.core_version }}"
-          echo "**Validators Version**: ${{ steps.version.outputs.validators_version }}"
-          echo "**CLI Version**: ${{ steps.version.outputs.cli_version }}"
-          echo "**Type**: ${{ steps.version.outputs.prerelease_type }}"
+          echo "validators_version=$(node -e "console.log(require('./packages/validators/package.json').version)")" >> $GITHUB_OUTPUT
+          echo "cli_version=$(node -e "console.log(require('./packages/cli/package.json').version)")" >> $GITHUB_OUTPUT
 
       - name: Publish prerelease packages
         run: |
@@ -107,15 +103,37 @@ EOF
           bunx changeset publish
 
       - name: Comment on PR
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v7
         with:
           script: |
+            const version = '${{ steps.applied.outputs.core_version }}';
+            const validatorsVersion = '${{ steps.applied.outputs.validators_version }}';
+            const cliVersion = '${{ steps.applied.outputs.cli_version }}';
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '## 📦 Prerelease Published to npm\n\n**Versions**:\n- `@alexcatdad/calico@${{ steps.version.outputs.core_version }}`\n- `@alexcatdad/calico-validators@${{ steps.version.outputs.validators_version }}`\n- `@alexcatdad/calico-cli@${{ steps.version.outputs.cli_version }}`\n\n### Installation\n\nInstall via npm:\n```bash\nnpm install @alexcatdad/calico@${{ steps.version.outputs.core_version }}\nnpm install @alexcatdad/calico-validators@${{ steps.version.outputs.validators_version }}\nnpm install @alexcatdad/calico-cli@${{ steps.version.outputs.cli_version }}\n```\n\n✅ All tests passed\n✅ Code linted\n✅ Packages built and published to npm'
+              body: `## 📦 Prerelease Published to npm
+
+**Versions**:
+- \`@alexcatdad/calico@${version}\`
+- \`@alexcatdad/calico-validators@${validatorsVersion}\`
+- \`@alexcatdad/calico-cli@${cliVersion}\`
+
+### Installation
+
+Install via npm:
+\`\`\`bash
+npm install @alexcatdad/calico@${version}
+npm install @alexcatdad/calico-validators@${validatorsVersion}
+npm install @alexcatdad/calico-cli@${cliVersion}
+\`\`\`
+
+✅ All tests passed
+✅ Code linted
+✅ Packages built and published to npm`
             })
 
       - name: Summary
@@ -124,9 +142,6 @@ EOF
           echo "## Prerelease Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Status**: $([ '${{ job.status }}' == 'success' ] && echo '✅ Success' || echo '❌ Failed')" >> $GITHUB_STEP_SUMMARY
-          echo "**Core Version**: \`${{ steps.version.outputs.core_version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Validators Version**: \`${{ steps.version.outputs.validators_version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**CLI Version**: \`${{ steps.version.outputs.cli_version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Installation" >> $GITHUB_STEP_SUMMARY
-          echo "\`npm install @alexcatdad/calico@${{ steps.version.outputs.core_version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Core Version**: \`${{ steps.applied.outputs.core_version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Validators Version**: \`${{ steps.applied.outputs.validators_version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**CLI Version**: \`${{ steps.applied.outputs.cli_version }}\`" >> $GITHUB_STEP_SUMMARY
