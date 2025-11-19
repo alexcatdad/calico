@@ -1,6 +1,6 @@
 {
     "name": "@alexcatdad/calico-cli",
-    "version": "1.0.0",
+    "version": "1.0.1-0",
     "description": "Command-line tool for @alexcatdad/calico. Convert data between JSON, CSV, YAML, and Markdown formats from the terminal.",
     "author": "@alexcatdad",
     "license": "MIT",
@@ -24,7 +24,8 @@
         "calico": "dist/index.js"
     },
     "files": [
-        "dist"
+        "dist",
+        "README.md"
     ],
     "scripts": {
         "build": "bun build ./src/index.ts --outdir dist --format esm --target node && bunx tsc --emitDeclarationOnly --outDir dist --skipLibCheck"

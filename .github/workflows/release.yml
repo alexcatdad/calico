@@ -1,0 +1,181 @@
+name: Release & Publish
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.draft == false) ||
+      github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 'latest'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Update npm
+        run: npm install -g npm@latest
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint code
+        run: bun turbo lint
+
+      - name: Run tests
+        run: bun turbo test
+
+      - name: Build packages
+        run: bun turbo build
+
+      - name: Generate prerelease version (PR only)
+        if: github.event_name == 'pull_request'
+        id: prerelease_version
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Get latest tag for base version
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+          BASE_VERSION=${LATEST_TAG#v}
+
+          # Create unique prerelease version
+          TIMESTAMP=$(date +%s)
+          PRERELEASE_VERSION="${BASE_VERSION}-pr.${PR_NUMBER}.${TIMESTAMP}"
+
+          echo "version=${PRERELEASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "dist_tag=pr" >> $GITHUB_OUTPUT
+
+      - name: Update package versions for prerelease (PR only)
+        if: github.event_name == 'pull_request'
+        env:
+          VERSION: ${{ steps.prerelease_version.outputs.version }}
+        run: |
+          node << 'EOF'
+          const fs = require('fs');
+          const version = process.env.VERSION;
+
+          const packages = [
+            'packages/core/package.json',
+            'packages/validators/package.json',
+            'packages/cli/package.json'
+          ];
+
+          packages.forEach(pkg => {
+            const content = JSON.parse(fs.readFileSync(pkg, 'utf8'));
+            content.version = version;
+            fs.writeFileSync(pkg, JSON.stringify(content, null, 2) + '\n');
+            console.log(`Updated ${pkg} to ${version}`);
+          });
+          EOF
+
+      - name: Create changeset (main only)
+        if: github.event_name == 'push'
+        run: |
+          # Check if there are any changesets
+          if [ -d ".changeset" ] && [ "$(ls -A .changeset/*.md 2>/dev/null | grep -v README | grep -v config)" ]; then
+            echo "has_changesets=true" >> $GITHUB_ENV
+          else
+            echo "has_changesets=false" >> $GITHUB_ENV
+          fi
+
+      - name: Apply changeset versions (main only)
+        if: github.event_name == 'push' && env.has_changesets == 'true'
+        id: release_version
+        run: |
+          bunx changeset version
+
+          # Extract versions
+          CORE_VERSION=$(node -e "console.log(require('./packages/core/package.json').version)")
+          VALIDATORS_VERSION=$(node -e "console.log(require('./packages/validators/package.json').version)")
+          CLI_VERSION=$(node -e "console.log(require('./packages/cli/package.json').version)")
+
+          echo "core_version=${CORE_VERSION}" >> $GITHUB_OUTPUT
+          echo "validators_version=${VALIDATORS_VERSION}" >> $GITHUB_OUTPUT
+          echo "cli_version=${CLI_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Publish prerelease packages (PR only)
+        if: github.event_name == 'pull_request'
+        env:
+          DIST_TAG: ${{ steps.prerelease_version.outputs.dist_tag }}
+        run: |
+          echo "Publishing prerelease packages with tag: ${DIST_TAG}"
+          echo ""
+
+          cd packages/core
+          echo "Publishing @alexcatdad/calico..."
+          npm publish --tag "${DIST_TAG}" --access public --provenance --verbose
+
+          cd ../validators
+          echo "Publishing @alexcatdad/calico-validators..."
+          npm publish --tag "${DIST_TAG}" --access public --provenance --verbose
+
+          cd ../cli
+          echo "Publishing @alexcatdad/calico-cli..."
+          npm publish --tag "${DIST_TAG}" --access public --provenance --verbose
+
+      - name: Publish release packages (main only)
+        if: github.event_name == 'push' && env.has_changesets == 'true'
+        run: |
+          echo "Publishing release packages..."
+          bunx changeset publish
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ steps.prerelease_version.outputs.version }}';
+            const distTag = '${{ steps.prerelease_version.outputs.dist_tag }}';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '## 📦 Prerelease Published to npm\n\n**Version**: `' + version + '`\n**Dist Tag**: `' + distTag + '`\n\n### Installation\n\nInstall via dist-tag (gets latest prerelease):\n```bash\nnpm install @alexcatdad/calico@' + distTag + '\nnpm install @alexcatdad/calico-validators@' + distTag + '\nnpm install @alexcatdad/calico-cli@' + distTag + '\n```\n\nOr install specific version:\n```bash\nnpm install @alexcatdad/calico@' + version + '\nnpm install @alexcatdad/calico-validators@' + version + '\nnpm install @alexcatdad/calico-cli@' + version + '\n```\n\n✅ All tests passed\n✅ Code linted\n✅ Packages built\n✅ Published to npm'
+            })
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Release & Publish Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Event**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status**: $([ '${{ job.status }}' == 'success' ] && echo '✅ Success' || echo '❌ Failed')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "**Prerelease Version**: \`${{ steps.prerelease_version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "**Dist Tag**: \`${{ steps.prerelease_version.outputs.dist_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          else
+            if [ "${{ env.has_changesets }}" == "true" ]; then
+              echo "**Core Version**: \`${{ steps.release_version.outputs.core_version }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "**Validators Version**: \`${{ steps.release_version.outputs.validators_version }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "**CLI Version**: \`${{ steps.release_version.outputs.cli_version }}\`" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**No changesets found** - skipping release" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi

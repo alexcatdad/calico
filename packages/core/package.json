@@ -1,6 +1,6 @@
 {
     "name": "@alexcatdad/calico",
-    "version": "1.0.0",
+    "version": "1.0.1-0",
     "description": "Zero-dependency data export library. Convert JavaScript objects to JSON, CSV, YAML, or Markdown with full TypeScript support and sub-millisecond performance.",
     "author": "@alexcatdad",
     "license": "MIT",
@@ -24,7 +24,8 @@
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [
-        "dist"
+        "dist",
+        "README.md"
     ],
     "scripts": {
         "build": "bun build ./src/index.ts --outdir dist --format esm --target browser && bunx tsc --emitDeclarationOnly --outDir dist --skipLibCheck",

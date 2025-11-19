@@ -117,49 +117,67 @@ npm install @alexcatdad/calico@1.0.0-pr.42.abc123  # Specific version
 
 Currently, prerelease deployments run in **dry-run mode** (no actual publishing).
 
-To enable real npm publishing:
+To enable real npm publishing, use **NPM's trusted publishers** (recommended):
 
-### 1. Create npm token
+### 1. Configure trusted publisher on npm
 
 1. Go to [npmjs.com](https://www.npmjs.com)
 2. Sign in to your account
-3. Settings → Tokens → Create Token
-4. Choose **Automation** type (can publish)
-5. Copy token
+3. Click on your avatar → Profile
+4. Select **Packages** tab
+5. Click on each package (@alexcatdad/calico, @alexcatdad/calico-validators, @alexcatdad/calico-cli)
+6. For each package:
+   - Go to **Settings** tab
+   - Scroll to **Trusted Publishers**
+   - Click **Add a trusted publisher**
+   - Select **GitHub Actions**
+   - **Repository**: `alexcatdad/calico`
+   - **Workflow filename**: `.github/workflows/publish.yml` (for main releases) or `.github/workflows/prerelease.yml` (for PR releases)
+   - **Environment**: leave blank or select your environment
+   - Save
 
-### 2. Add GitHub secret
+**Benefits of Trusted Publishers:**
+- ✅ No tokens to manage or rotate
+- ✅ Automatic OIDC token from GitHub
+- ✅ More secure than personal access tokens
+- ✅ NPM-recommended approach
+- ✅ Perfect for CI/CD
 
-1. Go to repo → Settings → Secrets and variables → Actions
-2. New repository secret
-3. Name: `NPM_TOKEN`
-4. Value: paste your npm token
+See [npm docs](https://docs.npmjs.com/trusted-publishers) for more details.
 
-### 3. Uncomment publish commands
+### 2. Update workflows to use OIDC
 
-In `.github/workflows/prerelease.yml`, find the "Publish to npm" step:
+The workflows already support OIDC. Just uncomment the publish commands:
 
 **Before** (dry-run):
-```yaml
-- name: Publish to npm (dry run)
-  run: |
-    echo "[DRY RUN] Publishing..."
+```bash
+bun publish --dry-run --tag $DIST_TAG
 ```
 
 **After** (real publish):
-```yaml
-- name: Publish to npm
-  run: |
-    npm config set //registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}
-
-    cd packages/core
-    npm publish --tag ${{ steps.version.outputs.dist_tag }}
-
-    cd ../validators
-    npm publish --tag ${{ steps.version.outputs.dist_tag }}
-
-    cd ../cli
-    npm publish --tag ${{ steps.version.outputs.dist_tag }}
+```bash
+bun publish --tag $DIST_TAG
 ```
+
+GitHub Actions will automatically provide an OIDC token that npm accepts.
+
+### 3. (Optional) Legacy: Personal Access Token
+
+If you prefer the old method with personal tokens:
+
+1. Go to [npmjs.com](https://www.npmjs.com)
+2. Settings → Tokens → Create Token
+3. Choose **Automation** type
+4. Copy token
+5. Go to repo → Settings → Secrets
+6. Add secret: `NPM_TOKEN`
+7. Update workflows to use:
+   ```bash
+   export NPM_CONFIG_TOKEN=${{ secrets.NPM_TOKEN }}
+   bun publish --tag $DIST_TAG
+   ```
+
+**Not recommended** - tokens need manual rotation and management.
 
 ## Testing Locally First
 
