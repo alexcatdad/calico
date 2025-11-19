@@ -8,6 +8,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     if: "!contains(github.event.head_commit.message, 'skip ci')"
 
     steps:
@@ -21,11 +24,6 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Setup Node.js for git operations
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -38,79 +36,50 @@ jobs:
       - name: Build packages
         run: bun turbo build
 
-      - name: Determine version
+      - name: Check for changesets
+        id: changesets
+        run: |
+          if [ -d ".changeset" ] && [ "$(ls -A .changeset/*.md 2>/dev/null)" ]; then
+            echo "has_changesets=true" >> $GITHUB_OUTPUT
+            # Count the changesets (excluding README and config)
+            COUNT=$(ls -1 .changeset/*.md 2>/dev/null | wc -l)
+            echo "count=${COUNT}" >> $GITHUB_OUTPUT
+          else
+            echo "has_changesets=false" >> $GITHUB_OUTPUT
+            echo "count=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Apply changesets and bump versions
+        if: steps.changesets.outputs.has_changesets == 'true'
         id: version
         run: |
-          # Get latest tag
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          bunx changeset version
 
-          # Count commits since last tag
-          COMMIT_COUNT=$(git rev-list --count $LATEST_TAG..HEAD 2>/dev/null || echo "0")
-          echo "commit_count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
+          # Extract the new versions
+          CORE_VERSION=$(node -e "console.log(require('./packages/core/package.json').version)")
+          VALIDATORS_VERSION=$(node -e "console.log(require('./packages/validators/package.json').version)")
+          CLI_VERSION=$(node -e "console.log(require('./packages/cli/package.json').version)")
 
-          # Extract version number
-          VERSION=${LATEST_TAG#v}
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          echo "core_version=${CORE_VERSION}" >> $GITHUB_OUTPUT
+          echo "validators_version=${VALIDATORS_VERSION}" >> $GITHUB_OUTPUT
+          echo "cli_version=${CLI_VERSION}" >> $GITHUB_OUTPUT
 
-          # Check for breaking changes (BREAKING CHANGE in commit message)
-          if git log $LATEST_TAG..HEAD --oneline 2>/dev/null | grep -qi "BREAKING CHANGE"; then
-            NEW_MAJOR=$((MAJOR + 1))
-            NEW_VERSION="$NEW_MAJOR.0.0"
-          # Check for features (feat:)
-          elif git log $LATEST_TAG..HEAD --oneline 2>/dev/null | grep -qi "^[^ ]*feat"; then
-            NEW_MINOR=$((MINOR + 1))
-            NEW_VERSION="$MAJOR.$NEW_MINOR.0"
-          # Default to patch
-          else
-            NEW_PATCH=$((PATCH + 1))
-            NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
-          fi
-
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-
-      - name: Check if version changed
-        id: check_version
+      - name: Publish packages
+        if: steps.changesets.outputs.has_changesets == 'true'
         run: |
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          if [ "$LATEST_TAG" == "v${{ steps.version.outputs.new_version }}" ]; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
-          fi
+          echo "Publishing packages to npm..."
+          bunx changeset publish
 
-      - name: Display version info
+      - name: Create git tag
+        if: steps.changesets.outputs.has_changesets == 'true'
         run: |
-          echo "Latest tag: ${{ steps.version.outputs.latest_tag }}"
-          echo "New version: v${{ steps.version.outputs.new_version }}"
-          echo "Version changed: ${{ steps.check_version.outputs.changed }}"
-          echo "Commits since last tag: ${{ steps.version.outputs.commit_count }}"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
 
-      - name: Create git tag (dry run)
-        if: steps.check_version.outputs.changed == 'true'
-        run: |
-          echo "[DRY RUN] Would create tag: v${{ steps.version.outputs.new_version }}"
-          git log -1 --oneline
-
-      - name: Publish to npm (dry run)
-        if: steps.check_version.outputs.changed == 'true'
-        run: |
-          echo "Testing npm publish with dry-run..."
-          echo ""
-
-          cd packages/core
-          echo "=== @alexcatdad/calico@${{ steps.version.outputs.new_version }} ==="
-          npm publish --dry-run
-
-          cd ../validators
-          echo ""
-          echo "=== @alexcatdad/calico-validators@${{ steps.version.outputs.new_version }} ==="
-          npm publish --dry-run
-
-          cd ../cli
-          echo ""
-          echo "=== @alexcatdad/calico-cli@${{ steps.version.outputs.new_version }} ==="
-          npm publish --dry-run
+          # Create and push git tags
+          git tag "@alexcatdad/calico@${{ steps.version.outputs.core_version }}" || true
+          git tag "@alexcatdad/calico-validators@${{ steps.version.outputs.validators_version }}" || true
+          git tag "@alexcatdad/calico-cli@${{ steps.version.outputs.cli_version }}" || true
 
       - name: Summary
         if: always()
@@ -118,11 +87,12 @@ jobs:
           echo "## Publish Workflow Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Status**: $([ '${{ job.status }}' == 'success' ] && echo '✅ Success' || echo '❌ Failed')" >> $GITHUB_STEP_SUMMARY
-          echo "**New Version**: v${{ steps.version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commits**: ${{ steps.version.outputs.commit_count }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Notes" >> $GITHUB_STEP_SUMMARY
-          echo "- All operations ran in **DRY RUN** mode" >> $GITHUB_STEP_SUMMARY
-          echo "- No git tags created" >> $GITHUB_STEP_SUMMARY
-          echo "- No packages published to npm" >> $GITHUB_STEP_SUMMARY
-          echo "- No git commits/pushes made" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.changesets.outputs.has_changesets }}" == "true" ]; then
+            echo "**Changesets Found**: ${{ steps.changesets.outputs.count }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Core Version**: \`${{ steps.version.outputs.core_version }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "**Validators Version**: \`${{ steps.version.outputs.validators_version }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "**CLI Version**: \`${{ steps.version.outputs.cli_version }}\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**No changesets found** - no packages published" >> $GITHUB_STEP_SUMMARY
+          fi

@@ -19,6 +19,11 @@ on:
 jobs:
   prerelease:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      issues: write
+      pull-requests: write
     if: |
       (github.event_name == 'pull_request' && github.event.pull_request.draft == false) ||
       github.event_name == 'workflow_dispatch'
@@ -46,122 +51,60 @@ jobs:
       - name: Build packages
         run: bun turbo build
 
-      - name: Determine prerelease version
-        id: version
+      - name: Create prerelease changeset
         env:
-          INPUT_PRERELEASE_TYPE: ${{ inputs.prerelease_type || 'pr' }}
-          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          PRERELEASE_TYPE: ${{ inputs.prerelease_type || 'pr' }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.run_number }}
         run: |
-          # Get latest tag
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          VERSION=${LATEST_TAG#v}
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          mkdir -p .changeset
 
-          # Determine prerelease suffix
-          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
-            PRERELEASE_TYPE="$INPUT_PRERELEASE_TYPE"
+          # Determine prerelease suffix based on trigger type
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PRERELEASE_SUFFIX="${PRERELEASE_TYPE}"
           else
-            PRERELEASE_TYPE="pr"
+            PRERELEASE_SUFFIX="pr.${PR_NUMBER}"
           fi
 
-          HASH=$(date +%s%N | sha256sum | cut -c1-8)
+          # Create changeset file with prerelease bump
+          cat > ".changeset/prerelease-${PRERELEASE_SUFFIX}.md" << 'EOF'
+---
+"@alexcatdad/calico": prerelease
+"@alexcatdad/calico-validators": prerelease
+"@alexcatdad/calico-cli": prerelease
+---
 
-          case $PRERELEASE_TYPE in
-            pr)
-              # Format: 1.0.0-pr.123.hash (PR number + short hash)
-              PRERELEASE_VERSION="$MAJOR.$MINOR.$PATCH-pr.$PR_NUMBER.$HASH"
-              DIST_TAG="pr"
-              ;;
-            dev)
-              # Format: 1.0.0-dev.hash (development)
-              PRERELEASE_VERSION="$MAJOR.$MINOR.$PATCH-dev.$HASH"
-              DIST_TAG="dev"
-              ;;
-            beta)
-              # Format: 1.0.0-beta.1
-              BETA_NUM=$(git tag -l "v$MAJOR.$MINOR.$PATCH-beta*" 2>/dev/null | wc -l)
-              BETA_NUM=$((BETA_NUM + 1))
-              PRERELEASE_VERSION="$MAJOR.$MINOR.$PATCH-beta.$BETA_NUM"
-              DIST_TAG="beta"
-              ;;
-            rc)
-              # Format: 1.0.0-rc.1 (release candidate)
-              RC_NUM=$(git tag -l "v$MAJOR.$MINOR.$PATCH-rc*" 2>/dev/null | wc -l)
-              RC_NUM=$((RC_NUM + 1))
-              PRERELEASE_VERSION="$MAJOR.$MINOR.$PATCH-rc.$RC_NUM"
-              DIST_TAG="rc"
-              ;;
-          esac
+Prerelease version: ${{ github.event_name == 'pull_request' && 'PR preview' || inputs.prerelease_type || 'dev' }}
+EOF
 
-          echo "prerelease_version=$PRERELEASE_VERSION" >> $GITHUB_OUTPUT
-          echo "dist_tag=$DIST_TAG" >> $GITHUB_OUTPUT
-          echo "base_version=$MAJOR.$MINOR.$PATCH" >> $GITHUB_OUTPUT
-
-      - name: Update package.json versions
+      - name: Apply prerelease versions
+        id: version
         env:
-          PRERELEASE_VERSION: ${{ steps.version.outputs.prerelease_version }}
+          PRERELEASE_TYPE: ${{ inputs.prerelease_type || 'pr' }}
         run: |
-          # Update root package.json (for consistency)
-          bun <<EOF
-          const fs = require('fs');
+          bunx changeset version
 
-          const packages = [
-            'package.json',
-            'packages/core/package.json',
-            'packages/validators/package.json',
-            'packages/cli/package.json'
-          ];
+          # Extract the new versions from package.json
+          CORE_VERSION=$(node -e "console.log(require('./packages/core/package.json').version)")
+          VALIDATORS_VERSION=$(node -e "console.log(require('./packages/validators/package.json').version)")
+          CLI_VERSION=$(node -e "console.log(require('./packages/cli/package.json').version)")
 
-          packages.forEach(pkg => {
-            if (fs.existsSync(pkg)) {
-              const content = JSON.parse(fs.readFileSync(pkg, 'utf8'));
-              content.version = '$PRERELEASE_VERSION';
-              fs.writeFileSync(pkg, JSON.stringify(content, null, 2) + '\n');
-            }
-          });
-          EOF
+          echo "core_version=${CORE_VERSION}" >> $GITHUB_OUTPUT
+          echo "validators_version=${VALIDATORS_VERSION}" >> $GITHUB_OUTPUT
+          echo "cli_version=${CLI_VERSION}" >> $GITHUB_OUTPUT
+          echo "prerelease_type=${PRERELEASE_TYPE}" >> $GITHUB_OUTPUT
 
       - name: Display prerelease info
         run: |
           echo "## Prerelease Information"
-          echo "**Base Version**: ${{ steps.version.outputs.base_version }}"
-          echo "**Prerelease Version**: ${{ steps.version.outputs.prerelease_version }}"
-          echo "**Dist Tag**: ${{ steps.version.outputs.dist_tag }}"
-          echo ""
-          echo "### Installation"
-          echo "\`\`\`bash"
-          echo "npm install @alexcatdad/calico@${{ steps.version.outputs.dist_tag }}"
-          echo "npm install @alexcatdad/calico-validators@${{ steps.version.outputs.dist_tag }}"
-          echo "npm install @alexcatdad/calico-cli@${{ steps.version.outputs.dist_tag }}"
-          echo "\`\`\`"
-          echo ""
-          echo "Or install specific version:"
-          echo "\`\`\`bash"
-          echo "npm install @alexcatdad/calico@${{ steps.version.outputs.prerelease_version }}"
-          echo "\`\`\`"
+          echo "**Core Version**: ${{ steps.version.outputs.core_version }}"
+          echo "**Validators Version**: ${{ steps.version.outputs.validators_version }}"
+          echo "**CLI Version**: ${{ steps.version.outputs.cli_version }}"
+          echo "**Type**: ${{ steps.version.outputs.prerelease_type }}"
 
-      - name: Publish to npm
-        env:
-          PRERELEASE_VERSION: ${{ steps.version.outputs.prerelease_version }}
-          DIST_TAG: ${{ steps.version.outputs.dist_tag }}
+      - name: Publish prerelease packages
         run: |
-          echo "Publishing prerelease packages to npm..."
-          echo ""
-
-          cd packages/core
-          echo "=== @alexcatdad/calico@$PRERELEASE_VERSION ==="
-          npm publish --tag $DIST_TAG
-
-          cd ../validators
-          echo ""
-          echo "=== @alexcatdad/calico-validators@$PRERELEASE_VERSION ==="
-          npm publish --tag $DIST_TAG
-
-          cd ../cli
-          echo ""
-          echo "=== @alexcatdad/calico-cli@$PRERELEASE_VERSION ==="
-          npm publish --tag $DIST_TAG
+          echo "Publishing prerelease packages..."
+          bunx changeset publish
 
       - name: Comment on PR
         if: github.event_name == 'pull_request'
@@ -172,7 +115,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '## 📦 Prerelease Published to npm\n\n**Version**: `${{ steps.version.outputs.prerelease_version }}`\n**Dist Tag**: `${{ steps.version.outputs.dist_tag }}`\n\n### Installation\n\nInstall via dist-tag:\n```bash\nnpm install @alexcatdad/calico@${{ steps.version.outputs.dist_tag }}\nnpm install @alexcatdad/calico-validators@${{ steps.version.outputs.dist_tag }}\nnpm install @alexcatdad/calico-cli@${{ steps.version.outputs.dist_tag }}\n```\n\nOr install specific version:\n```bash\nnpm install @alexcatdad/calico@${{ steps.version.outputs.prerelease_version }}\n```\n\n✅ All tests passed\n✅ Code linted\n✅ Packages built\n✅ Published to npm with dist tag `${{ steps.version.outputs.dist_tag }}`'
+              body: '## 📦 Prerelease Published to npm\n\n**Versions**:\n- `@alexcatdad/calico@${{ steps.version.outputs.core_version }}`\n- `@alexcatdad/calico-validators@${{ steps.version.outputs.validators_version }}`\n- `@alexcatdad/calico-cli@${{ steps.version.outputs.cli_version }}`\n\n### Installation\n\nInstall via npm:\n```bash\nnpm install @alexcatdad/calico@${{ steps.version.outputs.core_version }}\nnpm install @alexcatdad/calico-validators@${{ steps.version.outputs.validators_version }}\nnpm install @alexcatdad/calico-cli@${{ steps.version.outputs.cli_version }}\n```\n\n✅ All tests passed\n✅ Code linted\n✅ Packages built and published to npm'
             })
 
       - name: Summary
@@ -181,13 +124,9 @@ jobs:
           echo "## Prerelease Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Status**: $([ '${{ job.status }}' == 'success' ] && echo '✅ Success' || echo '❌ Failed')" >> $GITHUB_STEP_SUMMARY
-          echo "**Prerelease Version**: \`${{ steps.version.outputs.prerelease_version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Dist Tag**: \`${{ steps.version.outputs.dist_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Core Version**: \`${{ steps.version.outputs.core_version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Validators Version**: \`${{ steps.version.outputs.validators_version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**CLI Version**: \`${{ steps.version.outputs.cli_version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Installation" >> $GITHUB_STEP_SUMMARY
-          echo "\`npm install @alexcatdad/calico@${{ steps.version.outputs.dist_tag }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Notes" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Packages published to npm" >> $GITHUB_STEP_SUMMARY
-          echo "- Dist tag: \`${{ steps.version.outputs.dist_tag }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- No git tags created (prerelease only)" >> $GITHUB_STEP_SUMMARY
+          echo "\`npm install @alexcatdad/calico@${{ steps.version.outputs.core_version }}\`" >> $GITHUB_STEP_SUMMARY
