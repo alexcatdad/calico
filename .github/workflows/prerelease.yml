@@ -99,11 +99,11 @@ jobs:
           echo "base_version=$MAJOR.$MINOR.$PATCH" >> $GITHUB_OUTPUT
 
       - name: Update package.json versions
+        env:
+          PRERELEASE_VERSION: ${{ steps.version.outputs.prerelease_version }}
         run: |
-          VERSION="${{ steps.version.outputs.prerelease_version }}"
-
           # Update root package.json (for consistency)
-          bun <<'EOF'
+          bun <<EOF
           const fs = require('fs');
 
           const packages = [
@@ -116,7 +116,7 @@ jobs:
           packages.forEach(pkg => {
             if (fs.existsSync(pkg)) {
               const content = JSON.parse(fs.readFileSync(pkg, 'utf8'));
-              content.version = '${{ steps.version.outputs.prerelease_version }}';
+              content.version = '$PRERELEASE_VERSION';
               fs.writeFileSync(pkg, JSON.stringify(content, null, 2) + '\n');
             }
           });
