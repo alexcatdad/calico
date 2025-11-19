@@ -21,14 +21,14 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 'lts/*'
+          node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Setup Bun
@@ -123,15 +123,15 @@ jobs:
 
           cd packages/core
           echo "Publishing @alexcatdad/calico..."
-          npm publish --tag "${DIST_TAG}" --access public
+          npm publish --tag "${DIST_TAG}" --access public --provenance
 
           cd ../validators
           echo "Publishing @alexcatdad/calico-validators..."
-          npm publish --tag "${DIST_TAG}" --access public
+          npm publish --tag "${DIST_TAG}" --access public --provenance
 
           cd ../cli
           echo "Publishing @alexcatdad/calico-cli..."
-          npm publish --tag "${DIST_TAG}" --access public
+          npm publish --tag "${DIST_TAG}" --access public --provenance
 
       - name: Publish release packages (main only)
         if: github.event_name == 'push' && env.has_changesets == 'true'
