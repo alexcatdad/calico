@@ -80,6 +80,7 @@ export function fromYAML<T>(input: string): T {
   if (!input.trim()) return undefined as any;
   const lines = input.split("\n");
   let cl = 0;
+
   function parse(mi: number): any {
     let res: any = undefined;
     while (cl < lines.length) {
@@ -91,6 +92,7 @@ export function fromYAML<T>(input: string): T {
       const ind = line.search(/\S/);
       if (ind < mi) break;
       const c = line.trim();
+
       if (c.startsWith("- ")) {
         if (res === undefined) res = [];
         if (!Array.isArray(res))
@@ -99,8 +101,64 @@ export function fromYAML<T>(input: string): T {
           );
         const v = c.substring(2).trim();
         cl++;
-        if (v) res.push(val(v));
-        else res.push(parse(ind + 1));
+
+        // Check if this is an inline object (contains colon)
+        if (v && v.includes(":")) {
+          // Parse the first property inline
+          const colonIdx = v.indexOf(":");
+          const key = v.substring(0, colonIdx).trim();
+          const value = v.substring(colonIdx + 1).trim();
+
+          const obj: any = {};
+          obj[key] = val(value);
+
+          // Parse remaining properties at the same indentation level
+          const baseIndent = ind + 2; // Properties should be indented 2 spaces from the dash
+          while (cl < lines.length) {
+            const nextLine = lines[cl];
+            if (!nextLine.trim() || nextLine.trim().startsWith("#")) {
+              cl++;
+              continue;
+            }
+            const nextInd = nextLine.search(/\S/);
+
+            // If indentation is less than expected, we're done with this object
+            if (nextInd < baseIndent) break;
+
+            // If indentation is exactly baseIndent, it's a sibling property
+            if (nextInd === baseIndent) {
+              const nextContent = nextLine.trim();
+              if (nextContent.startsWith("-")) {
+                // New array item, stop parsing this object
+                break;
+              }
+              if (nextContent.includes(":")) {
+                const idx = nextContent.indexOf(":");
+                const k = nextContent.substring(0, idx).trim();
+                const propValue = nextContent.substring(idx + 1).trim();
+                cl++;
+                if (propValue) {
+                  obj[k] = val(propValue);
+                } else {
+                  // Nested object or array
+                  obj[k] = parse(nextInd + 2);
+                }
+              } else {
+                cl++;
+              }
+            } else {
+              // Deeper indentation means nested structure that should have been handled
+              break;
+            }
+          }
+          res.push(obj);
+        } else if (v) {
+          // Simple value
+          res.push(val(v));
+        } else {
+          // No inline value, parse nested content
+          res.push(parse(ind + 2));
+        }
       } else if (c.includes(":")) {
         const idx = c.indexOf(":");
         const k = c.substring(0, idx).trim();
@@ -112,7 +170,7 @@ export function fromYAML<T>(input: string): T {
           );
         cl++;
         if (v) res[k] = val(v);
-        else res[k] = parse(ind + 1);
+        else res[k] = parse(ind + 2);
       } else
         throw new SyntaxError(
           `Invalid YAML at line ${cl + 1}: unexpected token`,
@@ -120,6 +178,7 @@ export function fromYAML<T>(input: string): T {
     }
     return res;
   }
+
   function val(s: string): any {
     if (s === "true") return true;
     if (s === "false") return false;
@@ -129,6 +188,7 @@ export function fromYAML<T>(input: string): T {
       return s.slice(1, -1).replace(/\\"/g, '"');
     return s;
   }
+
   try {
     const r = parse(0);
     return r === undefined ? ({} as T) : r;

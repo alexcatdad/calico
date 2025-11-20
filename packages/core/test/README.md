@@ -97,10 +97,6 @@ LARGE_DATASET_TESTS=true bun test test/large-dataset.test.ts --timeout 300000
 - **Before major refactors** - Establish baseline
 - **Weekly in CI** - Catch regressions early
 
-### Known Issues
-
-⚠️ **YAML Parser Bug**: Large dataset YAML import fails (see `LARGE_DATASET_TEST_FINDINGS.md`)
-
 ## Mock Database Generator
 
 The `mock-db.ts` file provides utilities for generating realistic test data using **@faker-js/faker**:
