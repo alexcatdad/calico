@@ -103,7 +103,7 @@ LARGE_DATASET_TESTS=true bun test test/large-dataset.test.ts --timeout 300000
 
 ## Mock Database Generator
 
-The `mock-db.ts` file provides utilities for generating realistic test data:
+The `mock-db.ts` file provides utilities for generating realistic test data using **@faker-js/faker**:
 
 ### Generate Users
 

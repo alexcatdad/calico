@@ -29,8 +29,10 @@ Created comprehensive stress tests for Calico library using 100,000 mocked datab
 ### Files Created
 
 1. **`packages/core/test/mock-db.ts`** (Mock Database Generator)
+   - Uses **@faker-js/faker** for realistic data generation
    - Generates realistic user records with 13 fields
-   - Deterministic generation (same ID = same user)
+   - Deterministic generation (same ID = same user via seeding)
+   - Ensures uniqueness by appending IDs to usernames/emails
    - Data validation utilities
    - Memory estimation functions
    - Supports batched generation for memory efficiency
@@ -89,11 +91,13 @@ LARGE_DATASET_TESTS=true bun test large-dataset.test.ts --timeout 300000
 | Metric | Value |
 |--------|-------|
 | Records Generated | 100,000 |
-| Generation Time | 230.91ms |
-| Records/Second | ~433,000 |
-| Memory Used | ~37.57 MB |
+| Generation Time | ~2,300ms |
+| Records/Second | ~43,500 |
+| Memory Used | ~39.96 MB |
+| Data Generator | @faker-js/faker v9.3.0 |
 
 **Result:** ✅ Excellent performance
+**Note:** Faker.js generation is slower than hardcoded data but provides much more realistic and varied test data
 
 ### Export Performance (100k rows)
 

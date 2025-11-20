@@ -1,7 +1,10 @@
 /**
  * Mock Database Generator
  * Generates realistic test data for performance and stress testing
+ * Uses @faker-js/faker for realistic, varied data
  */
+
+import { faker } from '@faker-js/faker';
 
 export interface User {
   id: number;
@@ -26,63 +29,37 @@ export interface User {
   };
 }
 
-const firstNames = [
-  'Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Henry',
-  'Ivy', 'Jack', 'Kate', 'Liam', 'Mia', 'Noah', 'Olivia', 'Peter',
-  'Quinn', 'Rachel', 'Sam', 'Tina', 'Uma', 'Victor', 'Wendy', 'Xavier',
-  'Yara', 'Zack', 'Anna', 'Ben', 'Chloe', 'David'
-];
-
-const lastNames = [
-  'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis',
-  'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson',
-  'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin', 'Lee', 'Perez', 'Thompson',
-  'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson'
-];
-
 const roles: Array<'admin' | 'user' | 'moderator' | 'guest'> = ['admin', 'user', 'moderator', 'guest'];
 const themes: Array<'light' | 'dark'> = ['light', 'dark'];
 
 /**
- * Generate a UUID (mock version)
- */
-function generateUUID(seed: number): string {
-  const hex = seed.toString(16).padStart(8, '0');
-  return `${hex.slice(0, 8)}-${hex.slice(0, 4)}-4${hex.slice(0, 3)}-a${hex.slice(0, 3)}-${hex.slice(0, 12)}`;
-}
-
-/**
- * Generate a random date within the last 2 years
- */
-function generateDate(seed: number): string {
-  const now = Date.now();
-  const twoYearsAgo = now - (2 * 365 * 24 * 60 * 60 * 1000);
-  const timestamp = twoYearsAgo + (seed % (now - twoYearsAgo));
-  return new Date(timestamp).toISOString();
-}
-
-/**
- * Generate a single user record
+ * Generate a single user record using Faker.js
+ * Deterministic - same ID will always generate the same user
  */
 export function generateUser(id: number): User {
-  const firstName = firstNames[id % firstNames.length];
-  const lastName = lastNames[(id * 7) % lastNames.length];
-  const username = `${firstName.toLowerCase()}${lastName.toLowerCase()}${id}`;
-  const email = `${username}@example.com`;
-  const age = 18 + (id % 65);
-  const active = id % 3 !== 0; // ~66% active
-  const balance = Math.round((id * 123.456) % 10000 * 100) / 100;
-  const role = roles[id % roles.length];
-  const theme = themes[id % themes.length];
-  const createdAt = generateDate(id * 1000);
-  const updatedAt = generateDate(id * 1000 + 500);
-  const lastLogin = generateDate(id * 1000 + 1000);
-  const loginCount = id % 1000;
-  const notifications = id % 2 === 0;
+  // Seed faker with the ID to get deterministic, reproducible results
+  faker.seed(id);
+
+  const firstName = faker.person.firstName();
+  const lastName = faker.person.lastName();
+  // Ensure uniqueness by appending ID
+  const username = `${faker.internet.username({ firstName, lastName })}${id}`;
+  const email = `${faker.internet.username({ firstName, lastName }).toLowerCase()}${id}@example.com`;
+  const age = faker.number.int({ min: 18, max: 82 });
+  const active = faker.datatype.boolean({ probability: 0.66 }); // ~66% active
+  const balance = faker.number.float({ min: 0, max: 9999.99, fractionDigits: 2 });
+  const role = faker.helpers.arrayElement(roles);
+  const theme = faker.helpers.arrayElement(themes);
+  const createdAt = faker.date.past({ years: 2 }).toISOString();
+  const updatedAt = faker.date.recent({ days: 30 }).toISOString();
+  const lastLogin = faker.date.recent({ days: 7 }).toISOString();
+  const loginCount = faker.number.int({ min: 0, max: 999 });
+  const notifications = faker.datatype.boolean();
+  const uuid = faker.string.uuid();
 
   return {
     id,
-    uuid: generateUUID(id),
+    uuid,
     username,
     email,
     firstName,
