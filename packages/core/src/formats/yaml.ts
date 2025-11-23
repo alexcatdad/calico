@@ -103,7 +103,7 @@ export function fromYAML<T>(input: string): T {
         cl++;
 
         // Check if this is an inline object (contains colon)
-        if (v && v.includes(":")) {
+        if (v?.includes(":")) {
           // Parse the first property inline
           const colonIdx = v.indexOf(":");
           const key = v.substring(0, colonIdx).trim();
