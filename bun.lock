@@ -17,7 +17,7 @@
     },
     "packages/cli": {
       "name": "@alexcatdad/calico-cli",
-      "version": "0.0.0-pr.test.45w9ad59",
+      "version": "1.0.1-0",
       "bin": {
         "calico": "src/index.ts",
       },
@@ -27,14 +27,17 @@
     },
     "packages/core": {
       "name": "@alexcatdad/calico",
-      "version": "0.0.0-pr.test.45w9ad59",
+      "version": "1.0.1-0",
       "dependencies": {
         "@alexcatdad/calico-validators": "workspace:*",
+      },
+      "devDependencies": {
+        "@faker-js/faker": "^9.3.0",
       },
     },
     "packages/validators": {
       "name": "@alexcatdad/calico-validators",
-      "version": "0.0.0-pr.test.45w9ad59",
+      "version": "1.0.1-0",
     },
   },
   "packages": {
@@ -135,6 +138,8 @@
     "@commitlint/top-level": ["@commitlint/top-level@20.0.0", "", { "dependencies": { "find-up": "^7.0.0" } }, "sha512-drXaPSP2EcopukrUXvUXmsQMu3Ey/FuJDc/5oiW4heoCfoE5BdLQyuc7veGeE3aoQaTVqZnh4D5WTWe2vefYKg=="],
 
     "@commitlint/types": ["@commitlint/types@20.0.0", "", { "dependencies": { "@types/conventional-commits-parser": "^5.0.0", "chalk": "^5.3.0" } }, "sha512-bVUNBqG6aznYcYjTjnc3+Cat/iBgbgpflxbIBTnsHTX0YVpnmINPEkSRWymT2Q8aSH3Y7aKnEbunilkYe8TybA=="],
+
+    "@faker-js/faker": ["@faker-js/faker@9.9.0", "", {}, "sha512-OEl393iCOoo/z8bMezRlJu+GlRGlsKbUAN7jKB6LhnKoqKve5DXRpalbItIIcwnCjs1k/FOPjFzcA6Qn+H+YbA=="],
 
     "@inquirer/external-editor": ["@inquirer/external-editor@1.0.3", "", { "dependencies": { "chardet": "^2.1.1", "iconv-lite": "^0.7.0" }, "peerDependencies": { "@types/node": ">=18" }, "optionalPeers": ["@types/node"] }, "sha512-RWbSrDiYmO4LbejWY7ttpxczuwQyZLBUyygsA9Nsv95hpzUWwnNTVQmAq3xuh7vNwCp07UTmE5i11XAEExx4RA=="],
 
